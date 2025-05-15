@@ -47,3 +47,4 @@ docs/.vercel
 docs/.nitro
 .gitignore
 
+output/*
