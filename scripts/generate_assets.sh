@@ -27,12 +27,12 @@ EOF
 swift_code_header='// 🛠️ Auto-generated. Do not edit manually.
 #if canImport(UIKit)
 import UIKit
-public enum LucideIcons {
+extension Lucide {
 '
 swift_code_footer_ios='}
 #elseif canImport(AppKit)
 import AppKit
-public enum LucideIcons {
+extension Lucide {
 '
 swift_code_footer_common='}
 #endif
