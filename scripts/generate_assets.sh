@@ -60,8 +60,8 @@ for svg_file in "${svg_files[@]}"; do
     # Swift-safe 변수명 (a-arrow-down → aArrowDown) - camelCase로 변경
     swift_var_name=$(echo "$name" | tr '-' '_' | sed 's/^[0-9]/num&/')
 
-    # enum case 생성
-    icon_enum_case="    case ${swift_var_name} = \"$name\""
+    # enum case 생성 (모든 케이스를 백틱으로 감싸서 미래 안전성 확보)
+    icon_enum_case="    case \`${swift_var_name}\` = \"$name\""
 
     # UIKit 선언
     icon_entry_ui="    public static let \`${swift_var_name}\`: UIImage = UIImage(named: \"$name\", in: Bundle.module, with: nil)!"
