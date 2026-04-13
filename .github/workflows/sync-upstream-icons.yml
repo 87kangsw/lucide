@@ -99,9 +99,9 @@ jobs:
           git checkout -b "$BRANCH"
 
           # Remove old output and copy fresh generated output
-          rm -rf Icons.xcassets
-          cp -R "$GITHUB_WORKSPACE/output/Icons.xcassets" .
-          cp "$GITHUB_WORKSPACE/output/LucideIcons+Generated.swift" .
+          rm -rf Sources/LucideIcons/Icons.xcassets
+          cp -R "$GITHUB_WORKSPACE/output/Icons.xcassets" Sources/LucideIcons/
+          cp "$GITHUB_WORKSPACE/output/LucideIcons+Generated.swift" Sources/LucideIcons/
 
           git add -A
           git commit -m "chore: sync icons from upstream (${UPSTREAM_SHA})"
