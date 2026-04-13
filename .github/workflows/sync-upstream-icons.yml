@@ -1,0 +1,126 @@
+name: Sync Upstream Icons
+
+on:
+  schedule:
+    - cron: '0 9 * * *' # Daily at 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.LUCIDE_ICONS_PAT }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/lucide-icons/lucide.git || true
+          git fetch upstream main
+
+      - name: Check for icons/ changes
+        id: check
+        run: |
+          DIFF=$(git diff HEAD...upstream/main -- icons/)
+          if [ -z "$DIFF" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Snapshot icon list before merge
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          ls icons/*.svg | xargs -n1 basename | sed 's/\.svg$//' | sort > /tmp/icons_before.txt
+
+      - name: Merge upstream
+        if: steps.check.outputs.changed == 'true'
+        run: git merge upstream/main --no-edit
+
+      - name: Snapshot icon list after merge
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          ls icons/*.svg | xargs -n1 basename | sed 's/\.svg$//' | sort > /tmp/icons_after.txt
+
+      - name: Compute added/removed icons
+        if: steps.check.outputs.changed == 'true'
+        id: diff_icons
+        run: |
+          ADDED=$(comm -13 /tmp/icons_before.txt /tmp/icons_after.txt)
+          REMOVED=$(comm -23 /tmp/icons_before.txt /tmp/icons_after.txt)
+
+          {
+            echo "added<<EOF"
+            if [ -n "$ADDED" ]; then
+              echo "$ADDED" | sed 's/^/- `/' | sed 's/$/`/'
+            else
+              echo "_None_"
+            fi
+            echo "EOF"
+
+            echo "removed<<EOF"
+            if [ -n "$REMOVED" ]; then
+              echo "$REMOVED" | sed 's/^/- `/' | sed 's/$/`/'
+            else
+              echo "_None_"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate assets
+        if: steps.check.outputs.changed == 'true'
+        run: make generate
+
+      - name: Push output to LucideIcons and create PR
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.LUCIDE_ICONS_PAT }}
+          ADDED_ICONS: ${{ steps.diff_icons.outputs.added }}
+          REMOVED_ICONS: ${{ steps.diff_icons.outputs.removed }}
+        run: |
+          BRANCH="sync/upstream-icons-$(date +%Y%m%d)"
+          UPSTREAM_SHA=$(git rev-parse upstream/main | head -c 7)
+
+          # Clone target repo
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/87kangsw/LucideIcons.git" /tmp/LucideIcons
+          cd /tmp/LucideIcons
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH"
+
+          # Remove old output and copy fresh generated output
+          rm -rf Icons.xcassets
+          cp -R "$GITHUB_WORKSPACE/output/Icons.xcassets" .
+          cp "$GITHUB_WORKSPACE/output/LucideIcons+Generated.swift" .
+
+          git add -A
+          git commit -m "chore: sync icons from upstream (${UPSTREAM_SHA})"
+          git push -u origin "$BRANCH"
+
+          # Create PR
+          cat > /tmp/pr_body.md <<PREOF
+          ## Upstream Sync
+
+          Synced with [lucide-icons/lucide](https://github.com/lucide-icons/lucide) at \`${UPSTREAM_SHA}\`.
+
+          ### Added Icons
+          ${ADDED_ICONS}
+
+          ### Removed Icons
+          ${REMOVED_ICONS}
+          PREOF
+
+          gh pr create \
+            --repo 87kangsw/LucideIcons \
+            --title "chore: sync icons from upstream (${UPSTREAM_SHA})" \
+            --body-file /tmp/pr_body.md
