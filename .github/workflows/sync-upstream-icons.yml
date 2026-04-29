@@ -88,8 +88,8 @@ jobs:
           ADDED_ICONS: ${{ steps.diff_icons.outputs.added }}
           REMOVED_ICONS: ${{ steps.diff_icons.outputs.removed }}
         run: |
-          BRANCH="sync/upstream-icons-$(date +%Y%m%d)"
           UPSTREAM_SHA=$(git rev-parse upstream/main | head -c 7)
+          BRANCH="sync/upstream-icons-$(date +%Y%m%d)-${UPSTREAM_SHA}"
 
           # Clone target repo
           git clone "https://x-access-token:${GH_TOKEN}@github.com/87kangsw/LucideIcons.git" /tmp/LucideIcons
