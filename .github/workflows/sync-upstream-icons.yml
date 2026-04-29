@@ -43,7 +43,9 @@ jobs:
 
       - name: Merge upstream
         if: steps.check.outputs.changed == 'true'
-        run: git merge upstream/main --no-edit
+        run: |
+          git merge upstream/main --no-edit
+          git push origin main
 
       - name: Snapshot icon list after merge
         if: steps.check.outputs.changed == 'true'
